@@ -1,0 +1,258 @@
+---
+title: "Haemocyte masterscript"
+author: "Eliot"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r, Phagocytosis rate and phagocytosis capacity}
+
+library(readr)
+
+# Read the .csv file from the URL
+Phago_data <- read.csv("https://raw.githubusercontent.com/Obernique/Turbo-haemocytes/main/Table_phagocytosis.csv")
+
+# Calculate the average and standard deviation for phagocytosis rate and phagocytosis capacity
+average_phagocytosis_rate <- mean(Phago_data$Phagocytosis_rate, na.rm = TRUE)
+std_dev_phagocytosis_rate <- sd(Phago_data$Phagocytosis_rate, na.rm = TRUE)
+
+average_phagocytosis_capacity <- mean(Phago_data$Phagocytosis_capacity, na.rm = TRUE)
+std_dev_phagocytosis_capacity <- sd(Phago_data$Phagocytosis_capacity, na.rm = TRUE)
+```
+
+```{r, Total haemocyte count}
+
+library(readr)
+library(ggplot2)
+library(tidyverse)
+library(tidyr)
+library(dplyr)
+library(dunn.test)
+
+# Read the .csv from the URL
+THC_data <- read_csv("https://raw.githubusercontent.com/Obernique/Turbo-haemocytes/main/Table_THC.csv")
+
+# Plot the raw data to roughly show the THC per abalone
+ggplot(THC_data, aes(x = Sample, y = Haemocyte_per_mL)) +
+  geom_bar(stat = "identity", fill = "orange", color = "black", alpha = 0.5,
+           width = 0.2, position = position_dodge(0.9)) +
+  labs(x = "Abalone", y = "THC (cells mL⁻¹)") +
+  theme_bw()
+
+# Calculate the average and standard deviation for Haemocyte_per_mL
+average_haemocyte_per_mL <- mean(THC_data$Haemocyte_per_mL, na.rm = TRUE)
+std_dev_haemocyte_per_mL <- sd(THC_data$Haemocyte_per_mL, na.rm = TRUE)
+
+#Reshape the data for percentage of haemocyte
+THC_data_long <- THC_data %>%
+  select(Sample, Granulocyte_percentage, Hyalinocyte1_percentage, Hyalinocyte2_percentage) %>%
+  pivot_longer(cols = -Sample, names_to = "Cell_Type", values_to = "Percentage")
+
+# Rename the categories
+THC_data_long <- THC_data_long %>%
+  mutate(Cell_Type = case_when(
+    Cell_Type == "Granulocyte_percentage" ~ "Granulocytes",
+    Cell_Type == "Hyalinocyte1_percentage" ~ "Hyalinocytes type 1",
+    Cell_Type == "Hyalinocyte2_percentage" ~ "Hyalinocytes type 2",
+    TRUE ~ Cell_Type
+  ))
+
+# Plot pie charts of haemocyte percentages
+ggplot(THC_data_long, aes(x = "", y = Percentage, fill = Cell_Type)) +
+  geom_bar(stat = "identity", width = 1, color = "black") +
+  coord_polar("y", start = 0) +  # Convert the bar plot to a pie chart
+  facet_wrap(~Sample) +  # Create separate pie charts for each well
+  labs(title = "Haemocyte cell type per abalone (%)",
+       fill = "Haemocyte type",
+       x = NULL,
+       y = NULL) +
+  theme_void() +  # Remove unnecessary elements
+  theme(legend.position = "right") +  # Move legend to the right
+  scale_fill_manual(values = c("Granulocytes" = "#221c5c", 
+                                "Hyalinocytes type 1" = "#c72b5f", 
+                                "Hyalinocytes type 2" = "#ffa600"))
+
+# Compute averages and standard deviations for each numeric column
+avg <- sapply(THC_data, function(x) if(is.numeric(x)) mean(x, na.rm = TRUE) else NA)
+sd <- sapply(THC_data, function(x) if(is.numeric(x)) sd(x, na.rm = TRUE) else NA)
+
+# Combine averages and standard deviations into a new table
+summary_table_long <- data.frame(Average = avg, Standard_Deviation = sd)
+
+# Select only the desired rows from summary_table_long
+summary_stats_short <- summary_table_long[c("Haemocyte_per_mL", "Granulocyte_percentage", "Hyalinocyte1_percentage", "Hyalinocyte2_percentage"), ]
+
+# Print the summary_stats_short table
+print(summary_stats_short)
+
+#### Statistical tests
+
+# Test for the normality of distribution of the three variables to test
+
+# Perform Shapiro-Wilk test for Granulocyte_percentage
+shapiro_test_granulocyte <- shapiro.test(THC_data$Granulocyte_percentage)
+print("Shapiro-Wilk test for Granulocyte_percentage:")
+print(shapiro_test_granulocyte)
+
+# Perform Shapiro-Wilk test for Hyalinocyte1_percentage
+shapiro_test_hyalinocyte1 <- shapiro.test(THC_data$Hyalinocyte1_percentage)
+print("Shapiro-Wilk test for Hyalinocyte1_percentage:")
+print(shapiro_test_hyalinocyte1)
+
+# Perform Shapiro-Wilk test for Hyalinocyte2_percentage
+shapiro_test_hyalinocyte2 <- shapiro.test(THC_data$Hyalinocyte2_percentage)
+print("Shapiro-Wilk test for Hyalinocyte2_percentage:")
+print(shapiro_test_hyalinocyte2)
+
+# Here, all data is not normally distibuted, so we need to use the Kruskal-Wallis test
+# Perform Kruskal-Wallis test
+kruskal_test_result <- kruskal.test(list(Granulocyte = THC_data$Granulocyte_percentage,
+                                          Hyalinocyte1 = THC_data$Hyalinocyte1_percentage,
+                                          Hyalinocyte2 = THC_data$Hyalinocyte2_percentage))
+
+# Print the test result
+print(kruskal_test_result)
+
+# Kruskal-Wallis is significant, so we can do follow-up test using Dunn's test
+
+# Install and load the FSA package if you haven't already
+library(FSA)
+
+# Install and load the PMCMRplus package if you haven't already
+library(PMCMRplus)
+
+# Perform Conover's test for pairwise comparisons between the three variables
+conover_test_result <- kwAllPairsConoverTest(THC_data[, c("Granulocyte_percentage", "Hyalinocyte1_percentage", "Hyalinocyte2_percentage")])
+
+# Print the test result
+print(conover_test_result)
+```
+
+```{r, FSC-A and SSC-A}
+
+#### Test about size differences with FSC-A ####
+
+library(rcompanion)
+
+# Import dataset
+THC_data <- read_csv("https://raw.githubusercontent.com/Obernique/Turbo-haemocytes/main/Table_THC.csv")
+
+# Compute averages and standard deviations for each numeric column
+avg <- sapply(THC_data, function(x) if(is.numeric(x)) mean(x, na.rm = TRUE) else NA)
+sd <- sapply(THC_data, function(x) if(is.numeric(x)) sd(x, na.rm = TRUE) else NA)
+
+# Combine averages and standard deviations into a new table
+summary_table_long <- data.frame(Average = avg, Standard_Deviation = sd)
+
+# Select only the desired rows from summary_table_long
+summary_stats_short_size <- summary_table_long[c("Granulocyte_FSCA", "Hyalinocyte1_FSCA", "Hyalinocyte2_FSCA", "Granulocyte_SSCA", "Hyalinocyte1_SSCA", "Hyalionocyte2_SSCA"), ]
+
+# Print the summary_stats_short table
+print(summary_stats_short_size)
+
+####Test for the normality of distribution of the three variables to test for FSC-A
+
+# Perform Shapiro-Wilk test for Granulocyte_FSCA
+shapiro_test_granulocyte_FSCA <- shapiro.test(THC_data$Granulocyte_FSCA)
+print("Shapiro-Wilk test for Granulocyte_FSCA:")
+print(shapiro_test_granulocyte_FSCA)
+
+# Perform Shapiro-Wilk test for Hyalinocyte1_FSCA
+shapiro_test_hyalinocyte1_FSCA <- shapiro.test(THC_data$Hyalinocyte1_FSCA)
+print("Shapiro-Wilk test for Hyalinocyte1_FSCA:")
+print(shapiro_test_hyalinocyte1_FSCA)
+
+# Perform Shapiro-Wilk test for Hyalinocyte2_FSCA
+shapiro_test_hyalinocyte2_FSCA <- shapiro.test(THC_data$Hyalinocyte2_FSCA)
+print("Shapiro-Wilk test for Hyalinocyte2_percentage_FSCA:")
+print(shapiro_test_hyalinocyte2_FSCA)
+
+# Perform Bartlett test for the variances of the three populations
+bartlett_test_FSCA <- bartlett.test(c(THC_data$Granulocyte_FSCA, THC_data$Hyalinocyte1_FSCA, THC_data$Hyalinocyte2_FSCA),
+                                    c(rep("Granulocytes", length(THC_data$Granulocyte_FSCA)),
+                                      rep("Hyalinocytes type 1", length(THC_data$Hyalinocyte1_FSCA)),
+                                      rep("Hyalinocytes type 2", length(THC_data$Hyalinocyte2_FSCA))))
+print("Bartlett test for the variances of the three populations based on FSC-A:")
+print(bartlett_test_FSCA)
+
+# Bartlett test is significant, therefore the data doesn't have equal variances. Welch's f test is required here for the means of the three populations
+welch_test_FSCA <- oneway.test(c(THC_data$Granulocyte_FSCA, THC_data$Hyalinocyte1_FSCA, THC_data$Hyalinocyte2_FSCA) ~
+                                  c(rep("Granulocytes", length(THC_data$Granulocyte_FSCA)),
+                                    rep("Hyalinocytes type 1", length(THC_data$Hyalinocyte1_FSCA)),
+                                    rep("Hyalinocytes type 2", length(THC_data$Hyalinocyte2_FSCA))),
+                                var.equal = FALSE)
+print("Welch's F test for the means of the three populations based on FSC-A:")
+print(welch_test_FSCA)
+
+# Define groups
+group_names <- c("Granulocytes", "Hyalinocytes type 1", "Hyalinocytes type 2")
+group_data <- list(THC_data$Granulocyte_FSCA, 
+                   THC_data$Hyalinocyte1_FSCA, 
+                   THC_data$Hyalinocyte2_FSCA)
+
+# Perform pairwise comparisons using t-tests
+pairwise_p_values <- combn(length(group_names), 2, function(i) {
+  t_test_result <- t.test(group_data[[i[1]]], group_data[[i[2]]], var.equal = FALSE)
+  return(t_test_result$p.value)
+}, simplify = TRUE)
+
+# Adjust p-values for multiple comparisons
+adjusted_p_values <- p.adjust(pairwise_p_values, method = "bonferroni")
+
+# Output results
+results_df <- data.frame(Group1 = character(), Group2 = character(), p_value = numeric(), adjusted_p_value = numeric(), stringsAsFactors = FALSE)
+idx <- 1
+for (i in 1:(length(group_names)-1)) {
+  for (j in (i+1):length(group_names)) {
+    results_df[idx, "Group1"] <- group_names[i]
+    results_df[idx, "Group2"] <- group_names[j]
+    results_df[idx, "p_value"] <- pairwise_p_values[idx]
+    results_df[idx, "adjusted_p_value"] <- adjusted_p_values[idx]
+    idx <- idx + 1
+}
+}
+
+print("Pairwise comparisons using t-tests:")
+print(results_df)
+
+
+#### Cellular structure test with SSC-A ####
+
+# Perform Shapiro-Wilk test for Granulocyte_SSCA
+shapiro_test_granulocyte_SSCA <- shapiro.test(THC_data$Granulocyte_SSCA)
+print("Shapiro-Wilk test for Granulocyte_SSCA:")
+print(shapiro_test_granulocyte_SSCA)
+
+# Perform Shapiro-Wilk test for Hyalinocyte1_percentage
+shapiro_test_hyalinocyte1_SSCA <- shapiro.test(THC_data$Hyalinocyte1_SSCA)
+print("Shapiro-Wilk test for Hyalinocyte1_SSCA:")
+print(shapiro_test_hyalinocyte1_FSCA)
+
+# Perform Shapiro-Wilk test for Hyalinocyte2_percentage
+shapiro_test_hyalinocyte2_SSCA <- shapiro.test(THC_data$Hyalinocyte2_SSCA)
+print("Shapiro-Wilk test for Hyalinocyte2_percentage_SSCA:")
+print(shapiro_test_hyalinocyte2_SSCA)
+
+# Perform Kruskal-Wallis test because all data is not normaly distributed
+kruskal_test <- kruskal.test(list(THC_data$Granulocyte_SSCA,
+                                   THC_data$Hyalinocyte1_SSCA,
+                                   THC_data$Hyalinocyte2_SSCA))
+                                   
+# Print the test result
+print("Kruskal-Wallis test:")
+print(kruskal_test)
+
+# Perform Conover's test for pairwise comparisons between the three variables
+conover_test_result_SSCA <- kwAllPairsConoverTest(THC_data[, c("Granulocyte_SSCA", "Hyalinocyte1_SSCA", "Hyalinocyte2_SSCA")])
+
+# Print the test result
+print(conover_test_result_SSCA)
+```
+
+```{r, DCFH-DA and Lysotracker}
+
+# Import dataset
+THC_data <- read_csv("https://raw.githubusercontent.com/Obernique/Turbo-haemocytes/main/Table_DCFHDA_Lysotracker.csv")
+
+```
+
