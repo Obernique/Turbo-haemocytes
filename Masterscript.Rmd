@@ -344,6 +344,64 @@ for (i in 1:(length(group_names)-1)) {
 print("Pairwise comparisons using t-tests:")
 print(results_df)
 
+
+#### Lysotracker ####
+
+# Subset the data frame to include only the desired rows
+subset_table_lysotracker <- stat_summary_table[c("Granulocyte_lysotracker", "Hyalinocyte1_lysotracker", "Hyalinocyte2_lysotracker"), ]
+
+# Create the bar plot
+ggplot(subset_table_lysotracker, aes(x = row.names(subset_table_lysotracker))) +
+  geom_bar(aes(y = Average), stat = "identity", fill = "purple", color = "black") +
+  geom_errorbar(aes(ymin = Average - Standard_Deviation, ymax = Average + Standard_Deviation), width = 0.3) +
+  labs(title = "Lysosome content of different haemocyte types",
+       x = "Haemocyte type",
+       y = "Lysosome content (AU)") +
+  theme_bw() +
+  scale_x_discrete(labels = c("Granulocytes", "Hyalinocytes 1", "Hyalinocytes 2"))
+
+# Test for statistical differences for Lysotracker
+
+# Perform Shapiro-Wilk test for Granulocyte_lysotracker
+shapiro_test_granulocyte_lysotracker <- shapiro.test(DCFHFDA_LT_data$Granulocyte_lysotracker)
+print("Shapiro-Wilk test for Granulocyte DCFH-DA:")
+print(shapiro_test_granulocyte_lysotracker)
+
+# Perform Shapiro-Wilk test for Hyalinocyte1_lysotracker
+shapiro_test_hyalinocyte1_lysotracker <- shapiro.test(DCFHFDA_LT_data$Hyalinocyte1_lysotracker)
+print("Shapiro-Wilk test for Hyalinocyte1_lysotracker:")
+print(shapiro_test_hyalinocyte1_lysotracker)
+
+# Perform Shapiro-Wilk test for Hyalinocyte2_lysotracker
+shapiro_test_hyalinocyte2_lysotracker <- shapiro.test(DCFHFDA_LT_data$Hyalinocyte2_lysotracker)
+print("Shapiro-Wilk test for Hyalinocyte2_lysotracker:")
+print(shapiro_test_hyalinocyte2_lysotracker)
+
+# Data is normally distributed, next is to test heteroscedascity
+
+bartlett_test_lysotracker <- bartlett.test(c(DCFHFDA_LT_data$Granulocyte_lysotracker, DCFHFDA_LT_data$Hyalinocyte1_lysotracker, DCFHFDA_LT_data$Hyalinocyte2_lysotracker),
+                                    c(rep("Granulocytes", length(DCFHFDA_LT_data$Granulocyte_lysotracker)),
+                                      rep("Hyalinocytes type 1", length(DCFHFDA_LT_data$Hyalinocyte1_lysotracker)),
+                                      rep("Hyalinocytes type 2", length(DCFHFDA_LT_data$Hyalinocyte2_lysotracker))))
+print("Bartlett test for the variances of the three populations based on lysotracker")
+print(bartlett_test_lysotracker)
+
+# Data is homoscedastic, so we can use ANOVA to compare the three populations for lysotracker activity
+ANOVA_lysotracker <- aov(c(DCFHFDA_LT_data$Granulocyte_lysotracker, DCFHFDA_LT_data$Hyalinocyte1_lysotracker, DCFHFDA_LT_data$Hyalinocyte2_lysotracker) ~
+                      c(rep("Granulocytes", length(DCFHFDA_LT_data$Granulocyte_lysotracker)),
+                        rep("Hyalinocytes type 1", length(DCFHFDA_LT_data$Hyalinocyte1_lysotracker)),
+                        rep("Hyalinocytes type 2", length(DCFHFDA_LT_data$Hyalinocyte2_lysotracker))))
+
+# Print ANOVA results
+print("ANOVA for the means of the three populations based on lysosomal presence")
+summary(ANOVA_lysotracker)
+
+# Perform Tukey's HSD test for pairwise comparisons
+tukey_result_lysotracker <- TukeyHSD(ANOVA_lysotracker)
+
+# Print the Tukey HSD results
+print("Tukey HSD results:")
+print(tukey_result_lysotracker)
 ```
 ```
 
