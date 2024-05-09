@@ -254,5 +254,96 @@ print(conover_test_result_SSCA)
 # Import dataset
 THC_data <- read_csv("https://raw.githubusercontent.com/Obernique/Turbo-haemocytes/main/Table_DCFHDA_Lysotracker.csv")
 
+# Compute averages and standard deviations for each numeric column
+avg <- sapply(DCFHFDA_LT_data, function(x) if(is.numeric(x)) mean(x, na.rm = TRUE) else NA)
+sd <- sapply(DCFHFDA_LT_data, function(x) if(is.numeric(x)) sd(x, na.rm = TRUE) else NA)
+
+# Combine averages and standard deviations into a new table
+stat_summary_table <- data.frame(Average = avg, Standard_Deviation = sd)
+
+# Reset row names
+row.names(stat_summary_table) <- c("Abalone", "Granulocyte_DCFHDA", "Hyalinocyte1_DCFHDA", "Hyalinocyte2_DCFHDA", "Granulocyte_lysotracker", "Hyalinocyte1_lysotracker", "Hyalinocyte2_lysotracker")
+
+
+# Subset the data frame to include only the desired rows
+subset_table <- stat_summary_table[c("Granulocyte_DCFHDA", "Hyalinocyte1_DCFHDA", "Hyalinocyte2_DCFHDA"), ]
+
+# Create the bar plot
+ggplot(subset_table, aes(x = row.names(subset_table))) +
+  geom_bar(aes(y = Average), stat = "identity", fill = "orange", color = "black") +
+  geom_errorbar(aes(ymin = Average - Standard_Deviation, ymax = Average + Standard_Deviation), width = 0.3) +
+  labs(title = "Intracellular oxidative activity of different haemocyte types",
+       x = "Haemocyte type",
+       y = "Intracellular oxidative activity (AU)") +
+  theme_bw() +
+  scale_x_discrete(labels = c("Granulocytes", "Hyalinocytes 1", "Hyalinocytes 2"))
+
+# Test for statistical differences for DCFH-DA
+
+# Perform Shapiro-Wilk test for Granulocyte_percentage
+shapiro_test_granulocyte_DCFHDA <- shapiro.test(DCFHFDA_LT_data$Granulocyte_DCFHDA)
+print("Shapiro-Wilk test for Granulocyte DCFH-DA:")
+print(shapiro_test_granulocyte_DCFHDA)
+
+# Perform Shapiro-Wilk test for Hyalinocyte1_percentage
+shapiro_test_hyalinocyte1_DCFHDA <- shapiro.test(DCFHFDA_LT_data$Hyalinocyte1_DCFHDA)
+print("Shapiro-Wilk test for Hyalinocyte1_percentage:")
+print(shapiro_test_hyalinocyte1_DCFHDA)
+
+# Perform Shapiro-Wilk test for Hyalinocyte2_percentage
+shapiro_test_hyalinocyte2_DCFHDA <- shapiro.test(DCFHFDA_LT_data$Hyalinocyte2_DCFHDA)
+print("Shapiro-Wilk test for Hyalinocyte2_percentage:")
+print(shapiro_test_hyalinocyte2_DCFHDA)
+
+# Data is normally distributed, next is to test heteroscedascity
+
+bartlett_test_DCFHDA <- bartlett.test(c(DCFHFDA_LT_data$Granulocyte_DCFHDA, DCFHFDA_LT_data$Hyalinocyte1_DCFHDA, DCFHFDA_LT_data$Hyalinocyte2_DCFHDA),
+                                    c(rep("Granulocytes", length(DCFHFDA_LT_data$Granulocyte_DCFHDA)),
+                                      rep("Hyalinocytes type 1", length(DCFHFDA_LT_data$Hyalinocyte1_DCFHDA)),
+                                      rep("Hyalinocytes type 2", length(DCFHFDA_LT_data$Hyalinocyte2_DCFHDA))))
+print("Bartlett test for the variances of the three populations based on DCFH-DA")
+print(bartlett_test_DCFHDA)
+
+# Bartlett test is significant, therefore the data doesn't have equal variances. Welch's f test is required here for the means of the three populations
+welch_test_DCFHDA <- oneway.test(c(DCFHFDA_LT_data$Granulocyte_DCFHDA, DCFHFDA_LT_data$Hyalinocyte1_DCFHDA, DCFHFDA_LT_data$Hyalinocyte2_DCFHDA) ~
+                                  c(rep("Granulocytes", length(DCFHFDA_LT_data$Granulocyte_DCFHDA)),
+                                    rep("Hyalinocytes type 1", length(DCFHFDA_LT_data$Hyalinocyte1_DCFHDA)),
+                                    rep("Hyalinocytes type 2", length(DCFHFDA_LT_data$Hyalinocyte2_DCFHDA))),
+                                var.equal = FALSE)
+print("Welch's F test for the means of the three populations based on FSC-A:")
+print(welch_test_DCFHDA)
+
+# Define groups
+group_names <- c("Granulocytes", "Hyalinocytes type 1", "Hyalinocytes type 2")
+group_data <- list(DCFHFDA_LT_data$Granulocyte_DCFHDA, 
+                   DCFHFDA_LT_data$Hyalinocyte1_DCFHDA, 
+                   DCFHFDA_LT_data$Hyalinocyte2_DCFHDA)
+
+# Perform pairwise comparisons using t-tests
+pairwise_p_values <- combn(length(group_names), 2, function(i) {
+  t_test_result <- t.test(group_data[[i[1]]], group_data[[i[2]]], var.equal = FALSE)
+  return(t_test_result$p.value)
+}, simplify = TRUE)
+
+# Adjust p-values for multiple comparisons
+adjusted_p_values <- p.adjust(pairwise_p_values, method = "bonferroni")
+
+# Output results
+results_df <- data.frame(Group1 = character(), Group2 = character(), p_value = numeric(), adjusted_p_value = numeric(), stringsAsFactors = FALSE)
+idx <- 1
+for (i in 1:(length(group_names)-1)) {
+  for (j in (i+1):length(group_names)) {
+    results_df[idx, "Group1"] <- group_names[i]
+    results_df[idx, "Group2"] <- group_names[j]
+    results_df[idx, "p_value"] <- pairwise_p_values[idx]
+    results_df[idx, "adjusted_p_value"] <- adjusted_p_values[idx]
+    idx <- idx + 1
+}
+}
+
+print("Pairwise comparisons using t-tests:")
+print(results_df)
+
+```
 ```
 
