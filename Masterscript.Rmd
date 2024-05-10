@@ -251,8 +251,10 @@ print(conover_test_result_SSCA)
 
 ```{r, DCFH-DA and Lysotracker}
 
+#### DCFH-DA ####
+
 # Import dataset
-THC_data <- read_csv("https://raw.githubusercontent.com/Obernique/Turbo-haemocytes/main/Table_DCFHDA_Lysotracker.csv")
+DCFHFDA_LT_data <- read_csv("https://raw.githubusercontent.com/Obernique/Turbo-haemocytes/main/Table_DCFHDA_Lysotracker.csv")
 
 # Compute averages and standard deviations for each numeric column
 avg <- sapply(DCFHFDA_LT_data, function(x) if(is.numeric(x)) mean(x, na.rm = TRUE) else NA)
@@ -270,7 +272,7 @@ subset_table <- stat_summary_table[c("Granulocyte_DCFHDA", "Hyalinocyte1_DCFHDA"
 
 # Create the bar plot
 ggplot(subset_table, aes(x = row.names(subset_table))) +
-  geom_bar(aes(y = Average), stat = "identity", fill = "orange", color = "black") +
+  geom_bar(aes(y = Average), stat = "identity", fill = "grey", color = "black") +
   geom_errorbar(aes(ymin = Average - Standard_Deviation, ymax = Average + Standard_Deviation), width = 0.3) +
   labs(title = "Intracellular oxidative activity of different haemocyte types",
        x = "Haemocyte type",
@@ -347,12 +349,12 @@ print(results_df)
 
 #### Lysotracker ####
 
-# Subset the data frame to include only the desired rows
+# Subset the data frame to include only the desired colu,ns
 subset_table_lysotracker <- stat_summary_table[c("Granulocyte_lysotracker", "Hyalinocyte1_lysotracker", "Hyalinocyte2_lysotracker"), ]
 
 # Create the bar plot
 ggplot(subset_table_lysotracker, aes(x = row.names(subset_table_lysotracker))) +
-  geom_bar(aes(y = Average), stat = "identity", fill = "purple", color = "black") +
+  geom_bar(aes(y = Average), stat = "identity", fill = "grey", color = "black") +
   geom_errorbar(aes(ymin = Average - Standard_Deviation, ymax = Average + Standard_Deviation), width = 0.3) +
   labs(title = "Lysosome content of different haemocyte types",
        x = "Haemocyte type",
@@ -364,7 +366,7 @@ ggplot(subset_table_lysotracker, aes(x = row.names(subset_table_lysotracker))) +
 
 # Perform Shapiro-Wilk test for Granulocyte_lysotracker
 shapiro_test_granulocyte_lysotracker <- shapiro.test(DCFHFDA_LT_data$Granulocyte_lysotracker)
-print("Shapiro-Wilk test for Granulocyte DCFH-DA:")
+print("Shapiro-Wilk test for Granulocyte_lysotracker")
 print(shapiro_test_granulocyte_lysotracker)
 
 # Perform Shapiro-Wilk test for Hyalinocyte1_lysotracker
@@ -403,5 +405,199 @@ tukey_result_lysotracker <- TukeyHSD(ANOVA_lysotracker)
 print("Tukey HSD results:")
 print(tukey_result_lysotracker)
 ```
+
+
+```{r, Mitotracker and Lysosensor}
+
+library(readr)
+library(ggplot2)
+
+#### Lysosensor ####
+
+# Import dataset
+MT_LS_data <- read_csv("https://raw.githubusercontent.com/Obernique/Turbo-haemocytes/main/Table_Mitotracker_Lysosensor.csv")
+
+# Remove rows that contain NA values
+MT_LS_data <- na.omit(MT_LS_data)
+
+# Compute averages and standard deviations for each numeric column
+avg <- sapply(MT_LS_data, function(x) if(is.numeric(x)) mean(x, na.rm = TRUE) else NA)
+sd <- sapply(MT_LS_data, function(x) if(is.numeric(x)) sd(x, na.rm = TRUE) else NA)
+
+# Combine averages and standard deviations into a new table
+stat_summary_table_MT_LS <- data.frame(Average = avg, Standard_Deviation = sd)
+
+# Extract rows containing "Lysosensor"
+lysosensor_rows <- stat_summary_table_MT_LS[grep("Lysosensor", rownames(stat_summary_table_MT_LS)), ]
+
+# Create a data frame for plotting
+lysosensor_plot <- data.frame(
+  Sample = rownames(lysosensor_rows),
+  Average = lysosensor_rows$Average,
+  Standard_Deviation = lysosensor_rows$Standard_Deviation
+)
+
+# Plot
+ggplot(lysosensor_plot, aes(x = Sample, y = Average)) +
+  geom_bar(stat = "identity", position = "dodge", fill = "grey", color = "black") +
+  geom_errorbar(aes(ymin = Average - Standard_Deviation, ymax = Average + Standard_Deviation),
+                width = 0.2, position = position_dodge(0.9)) +
+  labs(title = "Lysosomal activity of different haemocyte types",
+       x = "Haemocyte type",
+       y = "Lysosomal activity (AU)") +
+  theme_bw() +
+   scale_x_discrete(labels = c("Granulocytes", "Hyalinocytes 1", "Hyalinocytes 2"))
+
+# Test for statistical differences for Lysosensor
+
+# Perform Shapiro-Wilk test for Granulocyte_lysotracker
+shapiro_test_granulocytes_Lysosensor <- shapiro.test(MT_LS_data$Granulocytes_Lysosensor)
+print("Shapiro-Wilk test for Granulocytes_Lysosensor")
+print(shapiro_test_granulocytes_Lysosensor)
+
+# Perform Shapiro-Wilk test for Hyalinocyte1_lysotracker
+shapiro_test_hyalinocytes1_Lysosensor <- shapiro.test(MT_LS_data$Hyalinocytes1_Lysosensor)
+print("Shapiro-Wilk test for Hyalinocytes1_Lysosensor:")
+print(shapiro_test_hyalinocytes1_Lysosensor)
+
+# Perform Shapiro-Wilk test for Hyalinocyte2_lysotracker
+shapiro_test_hyalinocytes2_Lysosensor <- shapiro.test(MT_LS_data$Hyalinocytes2_Lysosensor)
+print("Shapiro-Wilk test for Hyalinocytes2_Lysosensor:")
+print(shapiro_test_hyalinocytes2_Lysosensor)
+
+# Data is normally distributed, next is to test heteroscedascity
+
+bartlett_test_Lysosensor <- bartlett.test(c(MT_LS_data$Granulocytes_Lysosensor, MT_LS_data$Hyalinocytes1_Lysosensor, MT_LS_data$Hyalinocytes2_Lysosensor),
+                                    c(rep("Granulocytes", length(MT_LS_data$Granulocytes_Lysosensor)),
+                                      rep("Hyalinocytes type 1", length(MT_LS_data$Hyalinocytes1_Lysosensor)),
+                                      rep("Hyalinocytes type 2", length(MT_LS_data$Hyalinocytes2_Lysosensor))))
+print("Bartlett test for the variances of the three populations based on Lysosensor")
+print(bartlett_test_Lysosensor)
+
+# Data is heteroscedatic, Welch's f test is required here for the means of the three populations
+welch_test_Lysosensor <- oneway.test(c(MT_LS_data$Granulocytes_Lysosensor, MT_LS_data$Hyalinocytes1_Lysosensor, MT_LS_data$Hyalinocytes2_Lysosensor) ~
+                                  c(rep("Granulocytes", length(MT_LS_data$Granulocytes_Lysosensor)),
+                                    rep("Hyalinocytes type 1", length(MT_LS_data$Hyalinocytes1_Lysosensor)),
+                                    rep("Hyalinocytes type 2", length(MT_LS_data$Hyalinocytes2_Lysosensor))),
+                                var.equal = FALSE)
+print("Welch's F test for the means of the three populations based on Lysosensor")
+print(welch_test_Lysosensor)
+
+
+# Define groups
+group_names <- c("Granulocytes", "Hyalinocytes type 1", "Hyalinocytes type 2")
+group_data <- list(MT_LS_data$Granulocytes_Lysosensor, 
+                   MT_LS_data$Hyalinocytes1_Lysosensor, 
+                   MT_LS_data$Hyalinocytes2_Lysosensor)
+
+# Perform pairwise comparisons using t-tests
+pairwise_p_values <- combn(length(group_names), 2, function(i) {
+  t_test_result <- t.test(group_data[[i[1]]], group_data[[i[2]]], var.equal = FALSE)
+  return(t_test_result$p.value)
+}, simplify = TRUE)
+
+# Adjust p-values for multiple comparisons
+adjusted_p_values <- p.adjust(pairwise_p_values, method = "bonferroni")
+
+# Output results
+results_df <- data.frame(Group1 = character(), Group2 = character(), p_value = numeric(), adjusted_p_value = numeric(), stringsAsFactors = FALSE)
+idx <- 1
+for (i in 1:(length(group_names)-1)) {
+  for (j in (i+1):length(group_names)) {
+    results_df[idx, "Group1"] <- group_names[i]
+    results_df[idx, "Group2"] <- group_names[j]
+    results_df[idx, "p_value"] <- pairwise_p_values[idx]
+    results_df[idx, "adjusted_p_value"] <- adjusted_p_values[idx]
+    idx <- idx + 1
+}
+}
+
+print("Pairwise comparisons using t-tests:")
+print(results_df)
+
+
+#### Mitotracker ####
+
+# Extract rows containing "Lysosensor"
+mitotracker_rows <- stat_summary_table_MT_LS[grep("Mitotracker", rownames(stat_summary_table_MT_LS)), ]
+
+# Create a data frame for plotting
+mitotracker_plot <- data.frame(
+  Sample = rownames(mitotracker_rows),
+  Average = mitotracker_rows$Average,
+  Standard_Deviation = mitotracker_rows$Standard_Deviation
+)
+
+# Plot
+ggplot(mitotracker_plot, aes(x = Sample, y = Average)) +
+  geom_bar(stat = "identity", position = "dodge", fill = "grey", color = "black") +
+  geom_errorbar(aes(ymin = Average - Standard_Deviation, ymax = Average + Standard_Deviation),
+                width = 0.2, position = position_dodge(0.9)) +
+  labs(title = "Mitochondrial activity of different haemocyte types",
+       x = "Haemocyte type",
+       y = "Mitochondrial activity (AU)") +
+  theme_bw() +
+   scale_x_discrete(labels = c("Granulocytes", "Hyalinocytes 1", "Hyalinocytes 2"))
+
+
+# Test for statistical differences for Lysosensor
+
+# Perform Shapiro-Wilk test for Granulocyte_lysotracker
+shapiro_test_granulocytes_Mitotracker <- shapiro.test(MT_LS_data$Granulocytes_Mitotracker)
+print("Shapiro-Wilk test for Granulocytes_Mitotracker")
+print(shapiro_test_granulocytes_Mitotracker)
+
+# Perform Shapiro-Wilk test for Hyalinocyte1_lysotracker
+shapiro_test_hyalinocytes1_Mitotracker <- shapiro.test(MT_LS_data$Hyalinocytes1_Mitotracker)
+print("Shapiro-Wilk test for Hyalinocytes1_Mitotracker")
+print(shapiro_test_hyalinocytes1_Mitotracker)
+
+# Perform Shapiro-Wilk test for Hyalinocyte2_lysotracker
+shapiro_test_hyalinocytes2_Mitotracker <- shapiro.test(MT_LS_data$Hyalinocytes2_Mitotracker)
+print("Shapiro-Wilk test for Hyalinocytes2_Mitotracker")
+print(shapiro_test_hyalinocytes2_Mitotracker)
+
+# Data is normally distributed, next is to test heteroscedascity
+
+bartlett_test_Mitotracker <- bartlett.test(c(MT_LS_data$Granulocytes_Mitotracker, MT_LS_data$Hyalinocytes1_Mitotracker, MT_LS_data$Hyalinocytes2_Mitotracker),
+                                    c(rep("Granulocytes", length(MT_LS_data$Granulocytes_Mitotracker)),
+                                      rep("Hyalinocytes type 1", length(MT_LS_data$Hyalinocytes1_Mitotracker)),
+                                      rep("Hyalinocytes type 2", length(MT_LS_data$Hyalinocytes2_Mitotracker))))
+print("Bartlett test for the variances of the three populations based on Mitotracker")
+print(bartlett_test_Mitotracker)
+
+# Data is homoscedastic, so we can use ANOVA to compare the three populations for lysotracker activity
+ANOVA_Mitotracker <- aov(c(MT_LS_data$Granulocytes_Mitotracker, MT_LS_data$Hyalinocytes1_Mitotracker, MT_LS_data$Hyalinocytes2_Mitotracker) ~
+                      c(rep("Granulocytes", length(MT_LS_data$Granulocytes_Mitotracker)),
+                        rep("Hyalinocytes type 1", length(MT_LS_data$Hyalinocytes1_Mitotracker)),
+                        rep("Hyalinocytes type 2", length(MT_LS_data$Hyalinocytes2_Mitotracker))))
+
+# Print ANOVA results
+print("ANOVA for the means of the three populations based on lysosomal presence")
+summary(ANOVA_Mitotracker)
+
+# Perform Tukey's HSD test for pairwise comparisons
+tukey_result_Mitotracker <- TukeyHSD(ANOVA_Mitotracker)
+
+# Print the Tukey HSD results
+print("Tukey HSD results:")
+print(tukey_result_Mitotracker)
+```
+
+```{r, Apoptosis}
+
+library(readr)
+library(ggplot2)
+
+# Import dataset
+Apoptosis_data <- read_csv("https://raw.githubusercontent.com/Obernique/Turbo-haemocytes/main/Table_Apoptosis.csv")
+
+# Compute averages and standard deviations for each numeric column
+avg <- sapply(Apoptosis_data, function(x) if(is.numeric(x)) mean(x, na.rm = TRUE) else NA)
+sd <- sapply(Apoptosis_data, function(x) if(is.numeric(x)) sd(x, na.rm = TRUE) else NA)
+
+# Combine averages and standard deviations into a new table
+stat_summary_table_Apoptosis <- data.frame(Average = avg, Standard_Deviation = sd)
+
 ```
 
