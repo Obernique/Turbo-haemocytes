@@ -253,6 +253,9 @@ print(conover_test_result_SSCA)
 
 #### DCFH-DA ####
 
+library(readr)
+library(ggplot2)
+
 # Import dataset
 DCFHFDA_LT_data <- read_csv("https://raw.githubusercontent.com/Obernique/Turbo-haemocytes/main/Table_DCFHDA_Lysotracker.csv")
 
@@ -271,12 +274,15 @@ row.names(stat_summary_table) <- c("Abalone", "Granulocyte_DCFHDA", "Hyalinocyte
 subset_table <- stat_summary_table[c("Granulocyte_DCFHDA", "Hyalinocyte1_DCFHDA", "Hyalinocyte2_DCFHDA"), ]
 
 # Create the bar plot
-ggplot(subset_table, aes(x = row.names(subset_table))) +
+Intracellular_oxidative_activity_plot <- ggplot(subset_table, aes(x = row.names(subset_table))) +
   geom_bar(aes(y = Average), stat = "identity", fill = "grey", color = "black") +
   geom_errorbar(aes(ymin = Average - Standard_Deviation, ymax = Average + Standard_Deviation), width = 0.3) +
-  labs(title = "Intracellular oxidative activity of different haemocyte types",
-       x = "Haemocyte type",
-       y = "Intracellular oxidative activity (AU)") +
+  labs(title = "A. Intracellular oxidative activity",
+    x = "",
+    y = "Intracellular oxidative activity (AU)", element_text(color = "black", size = 12)
+  ) +
+  theme(axis.text = element_text(color = "black"),
+        axis.title = element_text(color = "black"))+
   theme_bw() +
   scale_x_discrete(labels = c("Granulocytes", "Hyalinocytes 1", "Hyalinocytes 2"))
 
@@ -353,12 +359,15 @@ print(results_df)
 subset_table_lysotracker <- stat_summary_table[c("Granulocyte_lysotracker", "Hyalinocyte1_lysotracker", "Hyalinocyte2_lysotracker"), ]
 
 # Create the bar plot
-ggplot(subset_table_lysotracker, aes(x = row.names(subset_table_lysotracker))) +
+Lysosomal_content_plot <- ggplot(subset_table_lysotracker, aes(x = row.names(subset_table_lysotracker))) +
   geom_bar(aes(y = Average), stat = "identity", fill = "grey", color = "black") +
   geom_errorbar(aes(ymin = Average - Standard_Deviation, ymax = Average + Standard_Deviation), width = 0.3) +
-  labs(title = "Lysosome content of different haemocyte types",
-       x = "Haemocyte type",
-       y = "Lysosome content (AU)") +
+  labs(title = "C. Lysosome content",
+       x = "",
+       y = "Lysosome content (AU)",
+       element_text(color = "black", size = 12)) +
+  theme(axis.text = element_text(color = "black"),
+        axis.title = element_text(color = "black")) +
   theme_bw() +
   scale_x_discrete(labels = c("Granulocytes", "Hyalinocytes 1", "Hyalinocytes 2"))
 
@@ -438,15 +447,17 @@ lysosensor_plot <- data.frame(
 )
 
 # Plot
-ggplot(lysosensor_plot, aes(x = Sample, y = Average)) +
+Lysosomal_activity_plot <- ggplot(lysosensor_plot, aes(x = Sample, y = Average)) +
   geom_bar(stat = "identity", position = "dodge", fill = "grey", color = "black") +
   geom_errorbar(aes(ymin = Average - Standard_Deviation, ymax = Average + Standard_Deviation),
                 width = 0.2, position = position_dodge(0.9)) +
-  labs(title = "Lysosomal activity of different haemocyte types",
-       x = "Haemocyte type",
-       y = "Lysosomal activity (AU)") +
+  labs(title = "B. Lysosomal activity",
+       x = "",
+       y = "Lysosomal activity (AU)", element_text(color = "black", size = 12)) +
+  theme(axis.text = element_text(color = "black"),
+        axis.title = element_text(color = "black")) +
   theme_bw() +
-   scale_x_discrete(labels = c("Granulocytes", "Hyalinocytes 1", "Hyalinocytes 2"))
+  scale_x_discrete(labels = c("Granulocytes", "Hyalinocytes 1", "Hyalinocytes 2"))
 
 # Test for statistical differences for Lysosensor
 
@@ -529,15 +540,18 @@ mitotracker_plot <- data.frame(
 )
 
 # Plot
-ggplot(mitotracker_plot, aes(x = Sample, y = Average)) +
+Mitochondrial_activity_plot <- ggplot(mitotracker_plot, aes(x = Sample, y = Average)) +
   geom_bar(stat = "identity", position = "dodge", fill = "grey", color = "black") +
   geom_errorbar(aes(ymin = Average - Standard_Deviation, ymax = Average + Standard_Deviation),
                 width = 0.2, position = position_dodge(0.9)) +
-  labs(title = "Mitochondrial activity of different haemocyte types",
-       x = "Haemocyte type",
-       y = "Mitochondrial activity (AU)") +
+  labs(title = "D. Mitochondrial activity",
+       x = "",
+       y = "Mitochondrial activity (AU)", element_text(color = "black", size = 12)
+  ) +
+  theme(axis.text = element_text(color = "black"),
+        axis.title = element_text(color = "black"))+
   theme_bw() +
-   scale_x_discrete(labels = c("Granulocytes", "Hyalinocytes 1", "Hyalinocytes 2"))
+  scale_x_discrete(labels = c("Granulocytes", "Hyalinocytes 1", "Hyalinocytes 2"))
 
 
 # Test for statistical differences for Lysosensor
@@ -599,5 +613,25 @@ sd <- sapply(Apoptosis_data, function(x) if(is.numeric(x)) sd(x, na.rm = TRUE) e
 # Combine averages and standard deviations into a new table
 stat_summary_table_Apoptosis <- data.frame(Average = avg, Standard_Deviation = sd)
 
+```
+
+```{r, facet graphs}
+library(patchwork)
+
+# Assuming you have already created the plots and stored them as objects named:
+# Intracellular_oxidative_activity_plot
+# Lysosomal_activity_plot
+# Lysosomal_content_plot
+# Mitochondrial_activity_plot
+
+# Combine the plots using patchwork
+combined_plot <- Intracellular_oxidative_activity_plot +
+                Lysosomal_activity_plot +
+                Lysosomal_content_plot +
+                Mitochondrial_activity_plot +
+                plot_layout(ncol = 2)
+
+# Print the combined plot
+print(combined_plot)
 ```
 
